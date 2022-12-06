@@ -1,0 +1,14 @@
+<clickhouse>
+    <http_handlers>
+        <rule>
+            <url>/metrics</url>
+            <methods>POST,GET</methods>
+            <handler>
+                <type>predefined_query_handler</type>
+                <query>SELECT * FROM system.operator_compatible_metrics FORMAT Prometheus</query>
+                <content_type>text/plain; charset=utf-8</content_type>
+            </handler>
+        </rule>
+        <defaults/>
+    </http_handlers>
+</clickhouse>
