@@ -1,0 +1,84 @@
+<clickhouse>
+	<http_handlers>
+		<rule>
+			<url>/api/echo</url>
+			<methods>POST,GET</methods>
+			<handler>
+				<type>static</type>
+				<status>200</status>
+				<response_content>echo</response_content>
+			</handler>
+		</rule>
+		<rule>
+			<url>/api/search/tags</url>
+			<methods>POST,GET</methods>
+			<handler>
+				<type>predefined_query_handler</type>
+				<query>SELECT arrayConcat(groupUniqArrayArray(mapKeys(attribute)), ['service.name']) AS tagNames FROM system.opentelemetry_span_log FORMAT JSONEachRow</query>
+				<content_type>text/plain; charset=utf-8</content_type>
+			</handler>
+		</rule>
+		<rule>
+			<url>
+				<![CDATA[regex:/api/search/tag/(?P<tag_key>[^/]+)/values]]>
+			</url>
+			<methods>POST,GET</methods>
+			<handler>
+				<type>predefined_query_handler</type>
+				<query>SELECT groupUniqArray(attribute[{tag_key:String}]) AS tagValues FROM system.opentelemetry_span_log FORMAT JSONEachRow</query>
+				<content_type>text/plain; charset=utf-8</content_type>
+			</handler>
+		</rule>
+		<rule>
+			<url>
+				<![CDATA[regex:/api/search(?P<tags>.)?(?P<limit>.)?(?P<start>.)?(?P<end>.)?]]>
+			</url>
+			<methods>POST,GET</methods>
+			<handler>
+				<type>predefined_query_handler</type>
+				<query>
+					<![CDATA[
+WITH
+    extractAllGroupsHorizontal({tags:String}, '([\\w\\.]+)="([^"]+)') AS arr,
+    CAST((arr[1], arr[2]), 'Map(String, String)') AS tags_map,
+    'clickhouse' AS rootServiceName,
+    base64Encode(CAST(reinterpretAsFixedString(trace_id), 'String')) AS traceID,
+    (finish_time_us - start_time_us) * 1000 AS durationMs
+SELECT groupArray(CAST((traceID, operation_name, rootServiceName, start_time_us * 1000, durationMs), 'Tuple(traceID String, rootTraceName String, rootServiceName String, startTimeUnixNano UInt64, durationMs UInt32)')) AS traces
+FROM
+(
+    SELECT *
+    FROM system.opentelemetry_span_log
+    WHERE (operation_name = 'query') AND hasAll(mapValues(attribute), mapValues(mapFilter((k, v) -> (k != 'service.name'), tags_map))) AND (start_time_us > ({start:UInt64} * 1000000)) AND (finish_time_us < ({end:UInt64} * 1000000))
+    ORDER BY durationMs DESC
+    LIMIT {limit:UInt32}
+)
+FORMAT JSONEachRow
+SETTINGS output_format_json_quote_64bit_integers = 1
+]]>
+				</query>
+				<content_type>text/plain; charset=utf-8</content_type>
+			</handler>
+		</rule>
+		<rule>
+			<url>
+				<![CDATA[regex:/api/traces/(?P<trace_id>.+)]]>
+			</url>
+			<methods>POST,GET</methods>
+			<handler>
+				<type>predefined_query_handler</type>
+				<query>
+					<![CDATA[
+WITH (reinterpretAsFixedString(toUUID(trace_id)) AS traceId, reinterpretAsFixedString(parent_span_id) AS parentSpanId, reinterpretAsFixedString(span_id) AS spanId, operation_name AS name, start_time_us * 1000 AS startTimeUnixNano, finish_time_us * 1000 AS endTimeUnixNano, CAST(mapApply((k, v) -> (k, tuple(v)), attribute), 'Array(Tuple(String, Tuple(String)))') AS attributes) AS span
+SELECT CAST([(tuple([('service.name', tuple('clickhouse')), ('hostname', tuple(hostName()))]), [tuple(groupArray(span))])], 'Array(Tuple(resource Tuple(attributes Array(Tuple(key String, value Tuple(string_value String)))), scope_spans Array(Tuple(spans Array(Tuple(trace_id FixedString(16), parent_span_id FixedString(8), span_id FixedString(8), name String,\nstart_time_unix_nano  UInt64, end_time_unix_nano UInt64, attributes Array(Tuple(key String, value Tuple(string_value String)))))))))') AS resource_spans
+FROM system.opentelemetry_span_log
+WHERE trace_id = reinterpretAsUUID(base64Decode({trace_id:String}))
+FORMAT ProtobufSingle
+SETTINGS format_schema = 'trace.proto:TracesData'
+]]>
+				</query>
+				<content_type>text/plain; charset=utf-8</content_type>
+			</handler>
+		</rule>
+	</http_handlers>
+</clickhouse>

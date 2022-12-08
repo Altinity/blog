@@ -1,0 +1,3 @@
+# HELP ${name:Raw} ${help:Raw}
+# TYPE ${name:Raw} ${type:Raw}
+${name:Raw}{${labels:Raw}}    ${value:Raw}

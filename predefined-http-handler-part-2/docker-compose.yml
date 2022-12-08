@@ -1,32 +1,10 @@
 version: '2.1'
 
 volumes:
-    prometheus_data: {}
     grafana_data: {}
     clickhouse_data: {}
 
 services:
-
-  prometheus:
-    image: prom/prometheus:v2.40.5
-    container_name: prometheus
-    volumes:
-      - ./prometheus:/etc/prometheus
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-    restart: unless-stopped
-    expose:
-      - 9090
-    ports:
-      - "39090:9090"
-    labels:
-      org.label-schema.group: "monitoring"
 
   grafana:
     image: grafana/grafana:9.3.1
