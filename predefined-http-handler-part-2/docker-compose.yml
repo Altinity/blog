@@ -29,6 +29,8 @@ services:
       - ./clickhouse/users.d:/etc/clickhouse-server/users.d
       - ./clickhouse/format_schemas:/var/lib/clickhouse/format_schemas
     restart: unless-stopped
+    environment:
+      - CLICKHOUSE_INIT_TIMEOUT=60
     expose:
       - 8123
     labels:

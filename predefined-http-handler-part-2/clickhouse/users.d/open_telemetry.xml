@@ -1,7 +1,7 @@
 <clickhouse>
-    <users>
+    <profiles>
         <default>
             <opentelemetry_start_trace_probability>1</opentelemetry_start_trace_probability>
         </default>
-    </users>
+    </profiles>
 </clickhouse>

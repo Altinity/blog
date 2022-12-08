@@ -19,9 +19,7 @@
 			</handler>
 		</rule>
 		<rule>
-			<url>
-				<![CDATA[regex:/api/search/tag/(?P<tag_key>[^/]+)/values]]>
-			</url>
+			<url><![CDATA[regex:/api/search/tag/(?P<tag_key>[^/]+)/values]]></url>
 			<methods>POST,GET</methods>
 			<handler>
 				<type>predefined_query_handler</type>
@@ -30,9 +28,7 @@
 			</handler>
 		</rule>
 		<rule>
-			<url>
-				<![CDATA[regex:/api/search(?P<tags>.)?(?P<limit>.)?(?P<start>.)?(?P<end>.)?]]>
-			</url>
+			<url><![CDATA[regex:/api/search(?P<tags>.)?(?P<limit>.)?(?P<start>.)?(?P<end>.)?]]></url>
 			<methods>POST,GET</methods>
 			<handler>
 				<type>predefined_query_handler</type>
@@ -43,7 +39,7 @@ WITH
     CAST((arr[1], arr[2]), 'Map(String, String)') AS tags_map,
     'clickhouse' AS rootServiceName,
     base64Encode(CAST(reinterpretAsFixedString(trace_id), 'String')) AS traceID,
-    (finish_time_us - start_time_us) * 1000 AS durationMs
+    (finish_time_us - start_time_us) / 1000 AS durationMs
 SELECT groupArray(CAST((traceID, operation_name, rootServiceName, start_time_us * 1000, durationMs), 'Tuple(traceID String, rootTraceName String, rootServiceName String, startTimeUnixNano UInt64, durationMs UInt32)')) AS traces
 FROM
 (
@@ -61,9 +57,7 @@ SETTINGS output_format_json_quote_64bit_integers = 1
 			</handler>
 		</rule>
 		<rule>
-			<url>
-				<![CDATA[regex:/api/traces/(?P<trace_id>.+)]]>
-			</url>
+			<url><![CDATA[regex:/api/traces/(?P<trace_id>.+)]]></url>
 			<methods>POST,GET</methods>
 			<handler>
 				<type>predefined_query_handler</type>
@@ -80,5 +74,6 @@ SETTINGS format_schema = 'trace.proto:TracesData'
 				<content_type>text/plain; charset=utf-8</content_type>
 			</handler>
 		</rule>
+		<defaults/>
 	</http_handlers>
 </clickhouse>
